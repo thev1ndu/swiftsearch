@@ -3,5 +3,5 @@ compatibility_date = "2025-12-22"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-REDIS_URL = "https://square-seasnail-43813.upstash.io"
-REDIS_TOKEN = "AaslAAIncDEyNGVmOTlkYTJmNjU0Zjc3YTc2YTgzYmExNjRiNjg3NHAxNDM4MTM"
+REDIS_URL = ""
+REDIS_TOKEN = ""
