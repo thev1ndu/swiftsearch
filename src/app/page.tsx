@@ -6,18 +6,28 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SearchCard } from "@/components/search-card";
 
+// In-memory cache keyed by normalized query string
 const CACHE = new Map<string, { list: string[]; server?: number }>();
 
 export default function SearchPage() {
+  // Current query input
   const [q, setQ] = useState("");
+
+  // Search result state with source and timing metadata
   const [res, setRes] = useState<{ list: string[]; src: string; time: number }>(
     { list: [], src: "", time: 0 }
   );
+
+  // Network loading indicator
   const [loading, setLoading] = useState(false);
+
+  // Tracks the active request to allow cancellation on rapid input changes
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const query = q.trim().toLowerCase();
+
+    // Reset state when query is empty
     if (!query) {
       setRes({ list: [], src: "", time: 0 });
       setLoading(false);
@@ -26,6 +36,7 @@ export default function SearchPage() {
 
     const start = performance.now();
 
+    // Serve results from in-memory cache when available
     if (CACHE.has(query)) {
       const cached = CACHE.get(query)!;
       setRes({
@@ -37,10 +48,13 @@ export default function SearchPage() {
       return;
     }
 
+    // Abort any in-flight request before issuing a new one
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
+
     setLoading(true);
 
+    // Fetch results from edge API
     fetch(
       `https://swiftsearch.itsthw9.workers.dev/api/search?q=${encodeURIComponent(
         query
@@ -55,6 +69,8 @@ export default function SearchPage() {
           list: (data.results || []) as string[],
           server: data.duration,
         };
+
+        // Cache successful responses for instant reuse
         CACHE.set(query, payload);
 
         setRes({
@@ -65,6 +81,7 @@ export default function SearchPage() {
         setLoading(false);
       })
       .catch((e) => {
+        // Ignore abort errors; fail silently for others
         if (e?.name !== "AbortError") setLoading(false);
       });
   }, [q]);
