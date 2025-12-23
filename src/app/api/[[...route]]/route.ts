@@ -1,69 +1,55 @@
 import { Hono } from "hono";
-import { handle } from "hono/vercel";
-import { env } from "hono/adapter";
-import { Redis } from "@upstash/redis";
+// import { handle } from "hono/vercel";
+import { Redis } from "@upstash/redis/cloudflare";
+import { cors } from "hono/cors";
 
 export const runtime = "edge";
 
 const app = new Hono().basePath("/api");
 
-type EnvConfig = {
-  REDIS_URL: string;
-  REDIS_TOKEN: string;
-};
+let redis: Redis;
 
+app.use("/search", cors());
 app.get("/search", async (c) => {
+  const start = performance.now();
+  const query = c.req.query("q")?.toLowerCase();
+
+  if (!query) return c.json({ results: [], duration: 0 });
+
   try {
-    const { REDIS_URL, REDIS_TOKEN } = env<EnvConfig>(c);
-
-    const start = performance.now();
-
-    const redis = new Redis({
-      url: REDIS_URL,
-      token: REDIS_TOKEN,
-    });
-
-    const query = c.req.query("q")?.toLowerCase();
-
-    if (!query) {
-      return c.json({ results: [] }, { status: 400 });
+    if (!redis) {
+      redis = new Redis({
+        url: process.env.REDIS_URL!,
+        token: process.env.REDIS_TOKEN!,
+      });
     }
 
-    const res = [];
     const rank = await redis.zrank("countries", query);
 
-    if (rank !== null && rank !== undefined) {
-      // @ts-ignore
-      const temp = await redis.zrange<string[]>("countries", rank, rank + 100);
-
-      for (const el of temp) {
-        if (!el.startsWith(query)) {
-          break;
-        }
-
-        if (el.endsWith("*")) {
-          res.push(el.substring(0, el.length - 1));
-        }
-      }
+    if (rank === null) {
+      return c.json({ results: [], duration: performance.now() - start });
     }
 
-    const end = performance.now();
+    const temp = await redis.zrange<string[]>("countries", rank, rank + 100);
+
+    const res = [];
+    for (const el of temp) {
+      if (!el.startsWith(query)) break;
+      if (el.endsWith("*")) res.push(el.slice(0, -1));
+      if (res.length >= 10) break;
+    }
 
     return c.json({
       results: res,
-      duration: end - start,
+      duration: performance.now() - start,
     });
   } catch (err) {
-    console.error(err);
-
-    return c.json(
-      { results: [], message: "Something went wrong." },
-      {
-        status: 500,
-      }
-    );
+    return c.json({ results: [], duration: 0 }, 500);
   }
 });
 
-export const GET = handle(app);
-export default app as never;
+// export const GET = handle(app);
+
+export default {
+  fetch: app.fetch,
+};
