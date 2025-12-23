@@ -3,7 +3,7 @@
 A high-performance, edge-first autocomplete search system demonstrating ultra-low-latency search using prefix indexing, edge execution, and intelligent client-side caching.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
-![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
 ## 🎯 Features
 
